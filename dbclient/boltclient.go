@@ -6,6 +6,15 @@ import(
 	"github.com/satori/go.uuid"
 )
 
+const(
+	SecretKey = "secret"
+)
+
+type Credential struct{
+	Password				[]byte			`json:"password"`
+	Timestamp				int64				`json:"timestamp"`
+}
+
 type IBoltClient interface{
 	OpenBoltDb()
 	QueueSelect()[]string																						// select list of queueId
@@ -15,10 +24,20 @@ type IBoltClient interface{
 	SelectRecord(queueId,id string)[]byte														// select value from queueId with key = id
 	InsertRecord(queueId string,data []byte)(string,error)					// insert into queueId with value = data return key as string
 	DeleteRecord(queueId,id string)error														// delete from queueId with key = id return key as string	
+	InsertCredential(queueId, key string, data []byte)error
 }
 
 type BoltClient struct{
 	boltDB	*bolt.DB
+}
+
+func(bc *BoltClient)InsertCredential(queueId, key string, data []byte)error{
+	err:=bc.boltDB.Update(func(tx *bolt.Tx)error{
+		b:=tx.Bucket([]byte(queueId))
+		err:=b.Put([]byte(key),data)
+		return err
+	})
+	return err
 }
 
 func(bc *BoltClient)DeleteRecord(queueId,id string)error{
@@ -53,7 +72,7 @@ func(bc *BoltClient)SelectRecord(queueId,id string)[]byte{
 	return result
 }
 
-func(bc *BoltClient)QueueSelectId(queueId,id string)[]string{
+func(bc *BoltClient)QueueSelectId(queueId string)[]string{
 	result:=[]string{}
 	bc.boltDB.View(func(tx *bolt.Tx)error{
 		b:=tx.Bucket([]byte(queueId))
